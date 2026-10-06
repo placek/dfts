@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dwarf Fortress Tileset Guide</title>
+<style>
+  :root {
+    --bg: #14110f; --panel: #1d1915; --line: #3a322a; --text: #e8dfd2; --muted: #9a8e7e;
+    --accent: #e0a63a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, sans-serif; }
+  header { padding: 20px 16px 8px; max-width: 1200px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  header p { margin: 0; color: var(--muted); }
+  a { color: var(--accent); }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; max-width: 1200px; margin: 0 auto; padding: 8px 16px 32px; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } aside { order: -1; position: static !important; } }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: center; }
+  input[type=search] { flex: 1 1 180px; min-width: 0; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 6px; font: inherit; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--muted); cursor: pointer; font: inherit; font-size: 13px; }
+  .chip[aria-pressed=true] { color: #1a1408; background: var(--accent); border-color: var(--accent); }
+  .swatches { display: flex; flex-wrap: wrap; gap: 4px; }
+  .sw { width: 20px; height: 20px; border: 2px solid var(--line); border-radius: 4px; padding: 0; cursor: pointer; }
+  .sw[aria-pressed=true] { border-color: #fff; }
+  .gridwrap { background: #000; border: 1px solid var(--line); border-radius: 8px; padding: 8px; line-height: 0; }
+  canvas#sheet { width: 100%; height: auto; image-rendering: pixelated; touch-action: manipulation; cursor: crosshair; display: block; }
+  aside { position: sticky; top: 12px; align-self: start; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-height: 220px; }
+  .head { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+  .head canvas { width: 64px; height: 64px; image-rendering: pixelated; background: #000; border: 1px solid var(--line); border-radius: 6px; flex: none; }
+  .head h2 { margin: 0; font-size: 1.05rem; }
+  .head small { color: var(--muted); }
+  .pinned { color: var(--accent); font-size: 12px; }
+  .grp { margin: 12px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; gap: 8px; align-items: center; padding: 3px 0; }
+  li canvas { width: 20px; height: 20px; image-rendering: pixelated; background: #000; border-radius: 3px; flex: none; }
+  li em { color: var(--muted); font-style: normal; font-size: 12px; }
+  li.hit span { background: #5b4412; border-radius: 3px; }
+  .empty { color: var(--muted); }
+  #tip { position: fixed; z-index: 10; pointer-events: none; background: #0c0a08; border: 1px solid var(--accent); border-radius: 6px; padding: 8px 10px; max-width: 260px; font-size: 13px; display: none; box-shadow: 0 6px 20px #000a; }
+  #tip b { color: var(--accent); }
+  #tip div { margin-top: 2px; }
+  footer { max-width: 1200px; margin: 0 auto; padding: 0 16px 28px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Dwarf Fortress Tileset Guide</h1>
+  <p>Hover (or tap) a tile to see which entities of the Dwarf Fortress universe use that glyph. Style follows the
+     <a href="https://dwarffortresswiki.org/index.php/Tilesets">DF wiki tileset reference</a>.</p>
+</header>
+<main>
+  <section>
+    <div class="controls">
+      <input id="q" type="search" placeholder="Search entities, e.g. goblin, grass, magma…" aria-label="Search entities">
+      <div class="chips" id="chips" role="group" aria-label="Filter by category"></div>
+    </div>
+    <div class="controls"><span style="color:var(--muted);font-size:13px">Tint</span><div class="swatches" id="sw"></div></div>
+    <div class="gridwrap"><canvas id="sheet" width="512" height="512" aria-label="Tileset grid"></canvas></div>
+  </section>
+  <aside id="panel" aria-live="polite"></aside>
+</main>
+<div id="tip"></div>
+<footer>
+  Click or press <kbd>Enter</kbd> to pin a tile; arrow keys move the selection; <kbd>Esc</kbd> unpins.
+  Glyph assignments follow the default ASCII layout (code page 437); many tilesets and creature variants differ.
+</footer>
+<script src="data.js"></script>
+<script>
+const PALETTE = ["#000000","#0000aa","#00aa00","#00aaaa","#aa0000","#aa00aa","#aa5500","#aaaaaa",
+                 "#555555","#5555ff","#55ff55","#55ffff","#ff5555","#ff55ff","#ffff55","#ffffff"];
+const PNAMES = ["Black","Blue","Green","Cyan","Red","Magenta","Brown","Light gray","Dark gray","Light blue",
+                "Light green","Light cyan","Light red","Light magenta","Yellow","White"];
+// CP437 -> Unicode, used for labelling tiles.
+const CP437 = "\u0000☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼" +
+  " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂" +
+  "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀" +
+  "αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ ";
+const CELL = 16, N = 16, SCALE = 2;
+const CATS = window.DF_CATEGORIES;
+
+const state = { color: 15, hover: -1, pinned: -1, query: "", cats: new Set(), };
+const img = new Image();
+img.src = "tileset.png";
+
+// Tinted sprite cache.
+const cache = new Map();
+function sprite(code, color) {
+  const key = code * 16 + color;
+  let c = cache.get(key);
+  if (c) return c;
+  c = document.createElement("canvas"); c.width = c.height = CELL;
+  const g = c.getContext("2d");
+  g.drawImage(img, (code % N) * CELL, Math.floor(code / N) * CELL, CELL, CELL, 0, 0, CELL, CELL);
+  g.globalCompositeOperation = "source-in";
+  g.fillStyle = PALETTE[color]; g.fillRect(0, 0, CELL, CELL);
+  cache.set(key, c); return c;
+}
+function glyphCanvas(code, color) {
+  const c = document.createElement("canvas"); c.width = c.height = CELL;
+  const g = c.getContext("2d"); g.imageSmoothingEnabled = false;
+  g.drawImage(sprite(code, color), 0, 0); return c;
+}
+
+const sheet = document.getElementById("sheet");
+const ctx = sheet.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+
+function entitiesOf(code) { return window.DF_ENTITIES[code] || []; }
+function matches(code) {
+  const q = state.query.trim().toLowerCase();
+  if (!q && !state.cats.size) return true;
+  return entitiesOf(code).some(e => entityMatches(e, q));
+}
+function entityMatches(e, q = state.query.trim().toLowerCase()) {
+  return (!state.cats.size || state.cats.has(e[0])) && (!q || e[1].toLowerCase().includes(q));
+}
+
+function draw() {
+  const W = CELL * SCALE;
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, sheet.width, sheet.height);
+  const filtering = state.query.trim() || state.cats.size;
+  for (let code = 0; code < 256; code++) {
+    const x = (code % N) * W, y = Math.floor(code / N) * W;
+    const ents = entitiesOf(code);
+    const hit = matches(code);
+    ctx.globalAlpha = filtering ? (hit ? 1 : 0.18) : (ents.length ? 1 : 0.55);
+    ctx.drawImage(sprite(code, state.color || 15), 0, 0, CELL, CELL, x, y, W, W);
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "#1f1b16"; ctx.lineWidth = 1;
+  for (let i = 0; i <= N; i++) {
+    ctx.beginPath(); ctx.moveTo(i * W + .5, 0); ctx.lineTo(i * W + .5, sheet.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i * W + .5); ctx.lineTo(sheet.width, i * W + .5); ctx.stroke();
+  }
+  // Dots mark tiles that have curated entities.
+  for (let code = 0; code < 256; code++) {
+    if (!entitiesOf(code).length) continue;
+    ctx.fillStyle = "#e0a63a";
+    ctx.fillRect((code % N) * W + 1, Math.floor(code / N) * W + 1, 3, 3);
+  }
+  for (const [code, col] of [[state.pinned, "#e0a63a"], [state.hover, "#ffffff"]]) {
+    if (code < 0) continue;
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.strokeRect((code % N) * W + 1, Math.floor(code / N) * W + 1, W - 2, W - 2);
+  }
+}
+
+function tileLabel(code) {
+  const ch = CP437[code] || "?";
+  const printable = code > 32 && code !== 255 ? ` “${ch}”` : "";
+  return `Tile ${code} · 0x${code.toString(16).toUpperCase().padStart(2, "0")}${printable}`;
+}
+
+function listHTML(code, forTip) {
+  const ents = entitiesOf(code);
+  if (!ents.length) return `<div class="empty">No curated entities for this glyph.</div>`;
+  const q = state.query.trim().toLowerCase();
+  let html = "";
+  for (const [cat, label] of Object.entries(CATS)) {
+    const list = ents.filter(e => e[0] === cat);
+    if (!list.length) continue;
+    html += `<div class="grp">${label}</div><ul>` + list.map(e => {
+      const hit = (q || state.cats.size) && entityMatches(e, q);
+      return `<li class="${hit ? "hit" : ""}"><canvas width="16" height="16" data-code="${code}" data-col="${e[2] ?? 15}"></canvas>` +
+             `<span>${e[1]}${e[3] ? ` <em>— ${e[3]}</em>` : ""}</span></li>`;
+    }).join("") + `</ul>`;
+  }
+  return html;
+}
+function paintMini(root) {
+  root.querySelectorAll("canvas[data-code]").forEach(c => {
+    const g = c.getContext("2d"); g.imageSmoothingEnabled = false;
+    g.drawImage(sprite(+c.dataset.code, +c.dataset.col || 15), 0, 0);
+  });
+}
+
+const panel = document.getElementById("panel");
+function renderPanel() {
+  const code = state.hover >= 0 ? state.hover : state.pinned;
+  if (code < 0) {
+    panel.innerHTML = `<div class="empty">Hover over a tile to list the entities that use it.<br><br>
+      Amber corner dots mark tiles with known entities.</div>`;
+    return;
+  }
+  panel.innerHTML = `<div class="head"><canvas width="16" height="16" data-code="${code}" data-col="${state.color || 15}"></canvas>
+    <div><h2>${tileLabel(code)}</h2><small>${state.pinned === code ? '<span class="pinned">📌 pinned</span>' : "click to pin"}</small></div></div>` + listHTML(code);
+  paintMini(panel);
+}
+
+const tip = document.getElementById("tip");
+function showTip(code, ev) {
+  const ents = entitiesOf(code);
+  tip.innerHTML = `<b>${tileLabel(code)}</b>` +
+    (ents.length ? ents.slice(0, 6).map(e => `<div>${e[1]}</div>`).join("") + (ents.length > 6 ? `<div style="color:var(--muted)">+${ents.length - 6} more…</div>` : "")
+                 : `<div style="color:var(--muted)">No curated entities</div>`);
+  tip.style.display = "block";
+  const pad = 14, r = tip.getBoundingClientRect();
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + r.width > innerWidth) x = ev.clientX - r.width - pad;
+  if (y + r.height > innerHeight) y = ev.clientY - r.height - pad;
+  tip.style.left = Math.max(4, x) + "px"; tip.style.top = Math.max(4, y) + "px";
+}
+
+function codeAt(ev) {
+  const r = sheet.getBoundingClientRect();
+  const x = Math.floor((ev.clientX - r.left) / r.width * N);
+  const y = Math.floor((ev.clientY - r.top) / r.height * N);
+  return x < 0 || y < 0 || x >= N || y >= N ? -1 : y * N + x;
+}
+function setHover(code) {
+  if (code === state.hover) return;
+  state.hover = code; draw(); renderPanel();
+}
+sheet.addEventListener("pointermove", ev => {
+  const c = codeAt(ev); setHover(c);
+  if (c >= 0 && ev.pointerType === "mouse") showTip(c, ev); else tip.style.display = "none";
+});
+sheet.addEventListener("pointerleave", () => { tip.style.display = "none"; setHover(-1); });
+sheet.addEventListener("click", ev => {
+  const c = codeAt(ev); if (c < 0) return;
+  state.pinned = state.pinned === c ? -1 : c; state.hover = c; draw(); renderPanel();
+});
+sheet.tabIndex = 0;
+sheet.addEventListener("keydown", ev => {
+  const cur = state.hover >= 0 ? state.hover : (state.pinned >= 0 ? state.pinned : 0);
+  const mv = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -N, ArrowDown: N }[ev.key];
+  if (mv !== undefined) {
+    ev.preventDefault();
+    const nx = Math.min(255, Math.max(0, cur + mv));
+    state.hover = nx; state.pinned = nx; draw(); renderPanel();
+  } else if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); state.pinned = state.pinned === cur ? -1 : cur; draw(); renderPanel(); }
+  else if (ev.key === "Escape") { state.pinned = -1; state.hover = -1; draw(); renderPanel(); }
+});
+
+// Controls
+const chips = document.getElementById("chips");
+for (const [k, label] of Object.entries(CATS)) {
+  const b = document.createElement("button");
+  b.className = "chip"; b.textContent = label; b.setAttribute("aria-pressed", "false");
+  b.onclick = () => {
+    state.cats.has(k) ? state.cats.delete(k) : state.cats.add(k);
+    b.setAttribute("aria-pressed", state.cats.has(k)); draw(); renderPanel();
+  };
+  chips.appendChild(b);
+}
+document.getElementById("q").addEventListener("input", e => { state.query = e.target.value; draw(); renderPanel(); });
+const sw = document.getElementById("sw");
+PALETTE.forEach((hex, i) => {
+  if (i === 0) return; // black on black is invisible
+  const b = document.createElement("button");
+  b.className = "sw"; b.style.background = hex; b.title = PNAMES[i];
+  b.setAttribute("aria-label", PNAMES[i]); b.setAttribute("aria-pressed", i === state.color);
+  b.onclick = () => {
+    state.color = i;
+    sw.querySelectorAll(".sw").forEach(s => s.setAttribute("aria-pressed", s === b));
+    draw(); renderPanel();
+  };
+  sw.appendChild(b);
+});
+
+img.onload = () => { draw(); renderPanel(); };
+renderPanel();
+</script>
+</body>
+</html>
