@@ -14,3 +14,8 @@ No build step. Serve the folder and open `index.html`:
 
 Entity data lives in `data.js` (keyed by tile index 0–255). It is curated for the default ASCII layout and
 is not exhaustive; glyphs without entries show a placeholder. Contributions welcome.
+
+## Deployment
+
+`.github/workflows/pages.yml` publishes the site to GitHub Pages on every push to `main`
+(one-time setup: **Settings → Pages → Source: GitHub Actions**).
