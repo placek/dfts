@@ -16,6 +16,16 @@ Each tile shows:
 Click or press <kbd>Enter</kbd> to pin a tile (the URL updates to `#tile=N` so it can be linked),
 arrow keys move the selection, <kbd>Esc</kbd> unpins. Search matches across every field above.
 
+## Scenes
+
+Below the grid, "In the game" shows a few example screens (embark site, fortress interior, deep
+caverns) drawn with the same tileset. Hover or tap any cell to inspect that tile in the side panel
+(with the colours it is drawn in); every cell using the hovered or pinned glyph is outlined.
+
+`scenes.js` is generated from the ASCII-art layouts in `tools/gen_scenes.py`:
+
+    cd tools && python3 gen_scenes.py ../index.html ../scenes.js
+
 ## Run
 
 No build step. Serve the folder and open `index.html`:
