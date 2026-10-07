@@ -22,6 +22,11 @@ Below the grid, "In the game" shows a few example screens (embark site, fortress
 caverns) drawn with the same tileset. Hover or tap any cell to inspect that tile in the side panel
 (with the colours it is drawn in); every cell using the hovered or pinned glyph is outlined.
 
+The first tab, "🎲 Random", is generated in the browser by `scenegen.js` — a new surface, fortress
+or cavern scene on every page load, and again on **Reroll**. Open `?kind=fortress&seed=123`
+(`surface`, `fortress` or `caverns`) to reproduce a particular one; each scene's seed is shown
+under its tab.
+
 `scenes.js` is generated from the ASCII-art layouts in `tools/gen_scenes.py`:
 
     cd tools && python3 gen_scenes.py ../index.html ../scenes.js
